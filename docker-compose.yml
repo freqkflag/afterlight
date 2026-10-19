@@ -1,0 +1,69 @@
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://afterlight:afterlight@db:5432/afterlight
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-change-me}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-dGhpcyBpcyBhIGRldiBrZXkgdGhhdCBzaG91bGQgYmUgY2hhbmdlZA==}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - CORS_ORIGINS=["http://localhost:3000"]
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - API_URL=http://localhost:8000
+    depends_on:
+      - api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=afterlight
+      - POSTGRES_PASSWORD=afterlight
+      - POSTGRES_DB=afterlight
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U afterlight"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Scheduled job runner for dead man's switch processing
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://afterlight:afterlight@db:5432/afterlight
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-change-me}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-dGhpcyBpcyBhIGRldiBrZXkgdGhhdCBzaG91bGQgYmUgY2hhbmdlZA==}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: python -m app.scheduler
+
+volumes:
+  postgres_data:
