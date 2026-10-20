@@ -53,11 +53,15 @@ class User(Base):
     dead_mans_switch: Mapped["DeadMansSwitch | None"] = relationship(
         back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
-    trusted_contacts: Mapped[list["TrustedContact"]] = relationship(
-        back_populates="user", cascade="all, delete-orphan"
-    )
     family_memberships: Mapped[list["FamilyMember"]] = relationship(
-        back_populates="user", cascade="all, delete-orphan"
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="FamilyMember.user_id",
+    )
+    executors: Mapped[list["Executor"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="Executor.user_id",
     )
     executor_grants: Mapped[list["ExecutorAccessGrant"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
@@ -106,4 +110,6 @@ class FamilyMember(Base):
 
     # Relationships
     family_circle: Mapped["FamilyCircle"] = relationship(back_populates="members")
-    user: Mapped["User"] = relationship(back_populates="family_memberships")
+    user: Mapped["User"] = relationship(
+        back_populates="family_memberships", foreign_keys=[user_id]
+    )
