@@ -14,8 +14,6 @@ export function VaultUnlock({
 }: {
   onUnlocked: (dek: CryptoKey) => void;
 }) {
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"loading" | "unlock" | "setup">("loading");
@@ -36,10 +34,13 @@ export function VaultUnlock({
     })();
   }, []);
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
     setLoading(true);
+    const form = new FormData(e.currentTarget);
+    const password = String(form.get("master_password") || "");
+    const confirm = String(form.get("confirm_password") || "");
     try {
       if (mode === "setup") {
         if (password.length < 12) {
@@ -101,25 +102,34 @@ export function VaultUnlock({
         </div>
       ) : null}
       <div>
-        <label className="block text-sm text-navy-200">Master password</label>
+        <label className="block text-sm text-navy-200" htmlFor="master_password">
+          Master password
+        </label>
         <input
-          type="password"
+          id="master_password"
+          name="master_password"
+          type="text"
+          autoComplete="off"
           required
           minLength={12}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
           className="mt-1 w-full rounded-lg border border-navy-600 bg-navy-900 px-4 py-2.5 text-white"
         />
       </div>
       {mode === "setup" ? (
         <div>
-          <label className="block text-sm text-navy-200">Confirm</label>
+          <label
+            className="block text-sm text-navy-200"
+            htmlFor="confirm_password"
+          >
+            Confirm
+          </label>
           <input
-            type="password"
+            id="confirm_password"
+            name="confirm_password"
+            type="text"
+            autoComplete="off"
             required
             minLength={12}
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
             className="mt-1 w-full rounded-lg border border-navy-600 bg-navy-900 px-4 py-2.5 text-white"
           />
         </div>
