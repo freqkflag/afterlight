@@ -7,10 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.database import get_db
-from app.models.user import User
-from app.models.legacy import DeliveryTrigger, DeliveryStatus, LegacyMessage
+from app.core.responses import CoercedStr
 from app.core.security import get_current_user
+from app.database import get_db
+from app.models.legacy import DeliveryStatus, DeliveryTrigger, LegacyMessage
+from app.models.user import User
 
 router = APIRouter(prefix="/legacy-messages", tags=["legacy-messages"])
 
@@ -36,7 +37,7 @@ class LegacyMessageUpdate(BaseModel):
 
 
 class LegacyMessageResponse(BaseModel):
-    id: str
+    id: CoercedStr
     recipient_email: str
     recipient_name: str
     subject: str
@@ -44,7 +45,7 @@ class LegacyMessageResponse(BaseModel):
     trigger_date: datetime | None
     status: str
     delivered_at: datetime | None
-    created_at: str
+    created_at: CoercedStr
 
     class Config:
         from_attributes = True

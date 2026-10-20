@@ -6,10 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.database import get_db
-from app.models.user import User
-from app.models.executor import AccessLevel, AuditAction, Executor, GrantStatus
+from app.core.responses import CoercedStr, OptionalCoercedStr
 from app.core.security import get_current_user
+from app.database import get_db
+from app.models.asset import Asset
+from app.models.executor import AccessLevel, AuditAction, AuditLog, Executor, GrantStatus
+from app.models.legacy import LegacyMessage
+from app.models.user import User
+from app.models.vault import VaultItem
 from app.services.audit import AuditService
 
 router = APIRouter(prefix="/executor", tags=["executor"])
@@ -30,15 +34,15 @@ class ExecutorUpdate(BaseModel):
 
 
 class ExecutorResponse(BaseModel):
-    id: str
+    id: CoercedStr
     executor_email: str
     executor_name: str
     relationship: str
     phone: str | None
     access_level: str
     status: str
-    accepted_at: str | None
-    created_at: str
+    accepted_at: OptionalCoercedStr
+    created_at: CoercedStr
 
     class Config:
         from_attributes = True
@@ -146,10 +150,6 @@ def get_dashboard_summary(
     db: Session = Depends(get_db),
 ):
     """Get a summary for the executor dashboard."""
-    from app.models.asset import Asset
-    from app.models.vault import VaultItem
-    from app.models.legacy import LegacyMessage
-
     assets = db.query(Asset).filter_by(user_id=current_user.id).all()
     vault_items = db.query(VaultItem).filter_by(user_id=current_user.id).all()
     messages = db.query(LegacyMessage).filter_by(user_id=current_user.id).all()
@@ -176,8 +176,6 @@ def _group_by_kind(assets: list[Asset]) -> dict[str, int]:
 
 def _get_recent_activity(db: Session, user_id: str, limit: int = 10) -> list[dict]:
     """Get recent audit log entries."""
-    from app.models.executor import AuditLog
-
     logs = (
         db.query(AuditLog)
         .filter_by(user_id=user_id)

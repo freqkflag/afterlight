@@ -6,10 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
+from app.core.responses import CoercedStr
+from app.core.security import create_access_token, create_refresh_token, get_current_user
 from app.database import get_db
 from app.models.user import User, UserRole
 from app.services.encryption import generate_salt, hash_password, verify_password
-from app.core.security import create_access_token, create_refresh_token, get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -34,7 +35,7 @@ class TokenResponse(BaseModel):
 
 
 class UserResponse(BaseModel):
-    id: str
+    id: CoercedStr
     email: str
     full_name: str
     role: str

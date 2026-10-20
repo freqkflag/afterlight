@@ -6,10 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.core.responses import CoercedStr, OptionalCoercedStr
+from app.core.security import get_current_user
 from app.database import get_db
 from app.models.user import User
 from app.models.vault import VaultItem, VaultItemKind
-from app.core.security import get_current_user
 
 router = APIRouter(prefix="/vault", tags=["vault"])
 
@@ -30,14 +31,14 @@ class VaultItemUpdate(BaseModel):
 
 
 class VaultItemResponse(BaseModel):
-    id: str
+    id: CoercedStr
     kind: str
     title_hint: str
     nonce: str
     encryption_version: int
-    asset_id: str | None
-    created_at: str
-    updated_at: str
+    asset_id: OptionalCoercedStr
+    created_at: CoercedStr
+    updated_at: CoercedStr
 
     class Config:
         from_attributes = True

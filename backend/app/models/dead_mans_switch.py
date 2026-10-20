@@ -15,7 +15,7 @@ from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship as orm_relationship
 
 from app.database import Base
 
@@ -80,14 +80,14 @@ class DeadMansSwitch(Base):
     released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
-    user: Mapped["User"] = relationship(back_populates="dead_mans_switch")
-    check_in_events: Mapped[list["CheckInEvent"]] = relationship(
+    user: Mapped["User"] = orm_relationship(back_populates="dead_mans_switch")
+    check_in_events: Mapped[list["CheckInEvent"]] = orm_relationship(
         back_populates="switch", cascade="all, delete-orphan", order_by="CheckInEvent.created_at.desc()"
     )
-    release_protocol: Mapped["ReleaseProtocol | None"] = relationship(
+    release_protocol: Mapped["ReleaseProtocol | None"] = orm_relationship(
         back_populates="switch", uselist=False, cascade="all, delete-orphan"
     )
-    trusted_contacts: Mapped[list["TrustedContact"]] = relationship(
+    trusted_contacts: Mapped[list["TrustedContact"]] = orm_relationship(
         back_populates="switch", cascade="all, delete-orphan"
     )
 
@@ -111,7 +111,7 @@ class CheckInEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Relationships
-    switch: Mapped["DeadMansSwitch"] = relationship(back_populates="check_in_events")
+    switch: Mapped["DeadMansSwitch"] = orm_relationship(back_populates="check_in_events")
 
 
 class ReleaseProtocol(Base):
@@ -136,7 +136,7 @@ class ReleaseProtocol(Base):
     )
 
     # Relationships
-    switch: Mapped["DeadMansSwitch"] = relationship(back_populates="release_protocol")
+    switch: Mapped["DeadMansSwitch"] = orm_relationship(back_populates="release_protocol")
 
 
 class ReleaseAction(Base):
@@ -185,4 +185,4 @@ class TrustedContact(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Relationships
-    switch: Mapped["DeadMansSwitch"] = relationship(back_populates="trusted_contacts")
+    switch: Mapped["DeadMansSwitch"] = orm_relationship(back_populates="trusted_contacts")

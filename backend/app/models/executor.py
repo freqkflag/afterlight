@@ -6,7 +6,7 @@ from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship as orm_relationship
 
 from app.database import Base
 
@@ -59,8 +59,8 @@ class Executor(Base):
     )
 
     # Relationships
-    user: Mapped["User"] = relationship(back_populates="executor_grants", foreign_keys=[user_id])
-    audit_logs: Mapped[list["AuditLog"]] = relationship(
+    user: Mapped["User"] = orm_relationship(back_populates="executors", foreign_keys=[user_id])
+    audit_logs: Mapped[list["AuditLog"]] = orm_relationship(
         back_populates="executor", cascade="all, delete-orphan"
     )
 
@@ -86,7 +86,7 @@ class ExecutorAccessGrant(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Relationships
-    user: Mapped["User"] = relationship(back_populates="executor_grants")
+    user: Mapped["User"] = orm_relationship(back_populates="executor_grants")
 
 
 class AuditAction(str, enum.Enum):
@@ -137,5 +137,5 @@ class AuditLog(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Relationships
-    user: Mapped["User"] = relationship(back_populates="audit_logs")
-    executor: Mapped["Executor | None"] = relationship(back_populates="audit_logs")
+    user: Mapped["User"] = orm_relationship(back_populates="audit_logs")
+    executor: Mapped["Executor | None"] = orm_relationship(back_populates="audit_logs")

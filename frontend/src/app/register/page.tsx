@@ -28,7 +28,16 @@ export default function RegisterPage() {
         return;
       }
 
-      const data = await res.json();
+      const loginRes = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!loginRes.ok) {
+        window.location.href = "/login";
+        return;
+      }
+      const data = await loginRes.json();
       localStorage.setItem("access_token", data.access_token);
       window.location.href = "/dashboard";
     } catch {

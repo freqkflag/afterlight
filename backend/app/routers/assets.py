@@ -6,10 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.database import get_db
-from app.models.user import User
-from app.models.asset import Asset, AssetKind, AssetStatus
+from app.core.responses import CoercedStr
 from app.core.security import get_current_user
+from app.database import get_db
+from app.models.asset import Asset, AssetKind, AssetStatus
+from app.models.user import User
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
@@ -34,7 +35,7 @@ class AssetUpdate(BaseModel):
 
 
 class AssetResponse(BaseModel):
-    id: str
+    id: CoercedStr
     kind: str
     name: str
     identifier: str | None
@@ -43,8 +44,8 @@ class AssetResponse(BaseModel):
     discovery_source: str
     notes: str | None
     has_credentials: bool
-    created_at: str
-    updated_at: str
+    created_at: CoercedStr
+    updated_at: CoercedStr
 
     class Config:
         from_attributes = True
