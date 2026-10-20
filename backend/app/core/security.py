@@ -65,6 +65,11 @@ def get_current_user(
         )
 
     payload = decode_token(credentials.credentials)
+    if payload.get("type") != "access":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Access token required",
+        )
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(

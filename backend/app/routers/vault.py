@@ -34,6 +34,7 @@ class VaultItemResponse(BaseModel):
     id: CoercedStr
     kind: str
     title_hint: str
+    encrypted_data: str
     nonce: str
     encryption_version: int
     asset_id: OptionalCoercedStr
