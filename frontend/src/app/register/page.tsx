@@ -39,6 +39,9 @@ export default function RegisterPage() {
       }
       const data = await loginRes.json();
       localStorage.setItem("access_token", data.access_token);
+      if (data.refresh_token) {
+        localStorage.setItem("refresh_token", data.refresh_token);
+      }
       window.location.href = "/dashboard";
     } catch {
       setError("Network error. Please try again.");

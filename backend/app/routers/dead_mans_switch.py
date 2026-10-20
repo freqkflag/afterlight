@@ -1,13 +1,13 @@
 """Dead Man's Switch router — check-in, status, and configuration."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
-from app.database import get_db
-from app.models.user import User
-from app.models.dead_mans_switch import CheckInMethod, SwitchStatus
 from app.core.security import get_current_user
+from app.database import get_db
+from app.models.dead_mans_switch import CheckInMethod, SwitchStatus, TrustedContact
+from app.models.user import User
 from app.services.dead_mans_switch import DeadMansSwitchService
 
 router = APIRouter(prefix="/dead-mans-switch", tags=["dead-mans-switch"])
@@ -25,7 +25,7 @@ class UpdateSwitchConfig(BaseModel):
 
 class TrustedContactCreate(BaseModel):
     name: str
-    email: str
+    email: EmailStr
     phone: str | None = None
     relationship: str
     priority: int = 1
@@ -76,10 +76,18 @@ def configure_switch(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Update dead man's switch configuration."""
+    """Create or update dead man's switch configuration."""
+    service = DeadMansSwitchService(db)
     switch = current_user.dead_mans_switch
     if not switch:
-        raise HTTPException(status_code=404, detail="Switch not configured")
+        switch = service.create_switch(
+            str(current_user.id),
+            check_in_interval_days=req.check_in_interval_days,
+            grace_period_days=req.grace_period_days,
+        )
+        db.commit()
+        db.refresh(current_user)
+        switch = current_user.dead_mans_switch
 
     if req.check_in_interval_days is not None:
         switch.check_in_interval_days = req.check_in_interval_days
@@ -89,7 +97,12 @@ def configure_switch(
         switch.missed_checkins_before_escalation = req.missed_checkins_before_escalation
 
     db.commit()
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "check_in_interval_days": switch.check_in_interval_days,
+        "grace_period_days": switch.grace_period_days,
+        "missed_checkins_before_escalation": switch.missed_checkins_before_escalation,
+    }
 
 
 @router.post("/pause")
@@ -129,11 +142,13 @@ def add_trusted_contact(
     db: Session = Depends(get_db),
 ):
     """Add a trusted contact."""
-    from app.models.dead_mans_switch import TrustedContact
-
     switch = current_user.dead_mans_switch
     if not switch:
-        raise HTTPException(status_code=404, detail="Switch not configured")
+        service = DeadMansSwitchService(db)
+        switch = service.create_switch(str(current_user.id))
+        db.commit()
+        db.refresh(current_user)
+        switch = current_user.dead_mans_switch
 
     contact = TrustedContact(
         switch_id=switch.id,

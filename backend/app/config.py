@@ -14,13 +14,14 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 24  # 24 hours
     refresh_token_expire_days: int = 30
     argon2_time_cost: int = 3
-    argon2_memory_cost: int = 65536  # 64 MB
+    # PyNaCl argon2id memlimit is bytes (65536 ≈ 64 KiB). Raise for production.
+    argon2_memory_cost: int = 65536
     argon2_parallelism: int = 4
 
     # Encryption
-    # Client-side encryption: server never sees plaintext or master password.
-    # These are for server-side envelope encryption of the user's key encryption key (KEK).
-    encryption_key: str = "base64-encoded-32-byte-key-change-me"
+    # Client-side vault crypto uses the user's master password in the browser.
+    # This server key is only for optional envelope helpers (unused by vault CRUD).
+    encryption_key: str = "dGhpcyBpcyBhIGRldiBrZXkgdGhhdCBzaG91bGQgYmUgY2hhbmdlZA=="
 
     # Dead Man's Switch defaults
     default_check_in_interval_days: int = 30

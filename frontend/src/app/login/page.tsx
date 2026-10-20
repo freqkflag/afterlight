@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { setTokens } from "@/lib/api";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -28,8 +29,9 @@ export default function LoginPage() {
       }
 
       const data = await res.json();
-      localStorage.setItem("access_token", data.access_token);
-      window.location.href = "/dashboard";
+      setTokens(data.access_token, data.refresh_token);
+      const params = new URLSearchParams(window.location.search);
+      window.location.href = params.get("next") || "/dashboard";
     } catch {
       setError("Network error. Please try again.");
     } finally {

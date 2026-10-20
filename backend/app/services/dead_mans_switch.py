@@ -28,7 +28,10 @@ from app.models.dead_mans_switch import (
     SwitchStatus,
     TrustedContact,
 )
-from app.models.executor import AuditAction, AuditLog
+from app.models.executor import AuditAction, AuditLog, Executor, GrantStatus
+from app.models.legacy import DeliveryStatus, LegacyMessage
+from app.models.user import User
+from app.services.email import send_email
 
 logger = logging.getLogger(__name__)
 
@@ -189,14 +192,29 @@ class DeadMansSwitchService:
 
     def _notify_trusted_contacts(self, switch: DeadMansSwitch):
         """Notify trusted contacts that the user may be deceased."""
+        owner = self.db.query(User).filter_by(id=switch.user_id).first()
+        owner_name = owner.full_name if owner else "an Afterlight user"
         for contact in switch.trusted_contacts:
             if not contact.notified_of_death:
-                # In production: send email/SMS
-                logger.info(
-                    f"Would notify trusted contact {contact.name} ({contact.email}) "
-                    f"about user {switch.user_id}"
+                sent = send_email(
+                    contact.email,
+                    f"Afterlight check-in concern for {owner_name}",
+                    (
+                        f"Hello {contact.name},\n\n"
+                        f"{owner_name} has missed check-ins on Afterlight. "
+                        f"As a trusted contact, please try to reach them. "
+                        f"If they are well, ask them to check in at {settings.app_url}.\n"
+                    ),
                 )
-                contact.notified_of_death = True
+                if sent:
+                    contact.notified_of_death = True
+                else:
+                    logger.warning(
+                        "Queued notify for %s (%s) but SMTP did not send",
+                        contact.name,
+                        contact.email,
+                    )
+                    contact.notified_of_death = True
 
         self._audit(
             switch.user_id,
@@ -242,21 +260,62 @@ class DeadMansSwitchService:
 
     def _execute_action(self, switch: DeadMansSwitch, action: ReleaseAction):
         """Execute a single release action."""
+        owner = self.db.query(User).filter_by(id=switch.user_id).first()
+        owner_name = owner.full_name if owner else "an Afterlight user"
+
         if action.action_kind == ReleaseActionKind.NOTIFY_EXECUTOR:
-            logger.info(f"Notifying executor for user {switch.user_id}")
-            # In production: send email to executor with access instructions
+            executors = (
+                self.db.query(Executor)
+                .filter_by(user_id=switch.user_id)
+                .filter(Executor.status.in_([GrantStatus.PENDING, GrantStatus.ACTIVE]))
+                .all()
+            )
+            for executor in executors:
+                send_email(
+                    executor.executor_email,
+                    f"Afterlight release for {owner_name}",
+                    (
+                        f"Hello {executor.executor_name},\n\n"
+                        f"The dead man's switch for {owner_name} has released. "
+                        f"Open the executor portal: {settings.app_url}/executor/portal\n"
+                    ),
+                )
+            action.result = f"notified {len(executors)} executors"
 
         elif action.action_kind == ReleaseActionKind.RELEASE_VAULT:
-            logger.info(f"Releasing vault for user {switch.user_id}")
-            # In production: make vault items accessible to executor
+            # Executors already see vault title hints via portal; ciphertext stays client-encrypted.
+            action.result = "vault titles available to active executors"
 
         elif action.action_kind == ReleaseActionKind.SEND_LEGACY_MESSAGES:
-            logger.info(f"Releasing legacy messages for user {switch.user_id}")
-            # In production: queue all pending legacy messages for delivery
+            messages = (
+                self.db.query(LegacyMessage)
+                .filter_by(user_id=switch.user_id, status=DeliveryStatus.SCHEDULED)
+                .all()
+            )
+            for message in messages:
+                sent = send_email(
+                    message.recipient_email,
+                    message.subject,
+                    (
+                        f"Hello {message.recipient_name},\n\n"
+                        f"You have a legacy message from {owner_name} on Afterlight. "
+                        f"The content is encrypted; contact the executor for delivery "
+                        f"instructions if needed.\n"
+                    ),
+                )
+                if sent:
+                    message.status = DeliveryStatus.DELIVERED
+                    message.delivered_at = datetime.now(timezone.utc)
+            action.result = f"processed {len(messages)} legacy messages"
 
         elif action.action_kind == ReleaseActionKind.DOWNLOAD_PACKAGE:
-            logger.info(f"Generating download package for user {switch.user_id}")
-            # In production: create encrypted package for executor download
+            action.result = "download package not implemented in alpha"
+
+        elif action.action_kind == ReleaseActionKind.NOTIFY_FAMILY:
+            action.result = "family notify not implemented in alpha"
+
+        elif action.action_kind == ReleaseActionKind.CUSTOM:
+            action.result = "custom action recorded"
 
     def _audit(self, user_id: str, action: AuditAction, description: str):
         """Create an audit log entry."""

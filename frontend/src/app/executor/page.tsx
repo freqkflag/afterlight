@@ -1,90 +1,128 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-interface Executor {
-  id: string;
-  executor_name: string;
-  executor_email: string;
-  relationship: string;
-  access_level: string;
-  status: string;
-}
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { AppShell } from "@/components/AppShell";
+import { api } from "@/lib/api";
+import type { Executor } from "@/types";
 
 export default function ExecutorPage() {
   const [executors, setExecutors] = useState<Executor[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [relationship, setRelationship] = useState("spouse");
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    async function fetchExecutors() {
-      try {
-        const token = localStorage.getItem("access_token");
-        const res = await fetch("/api/executor", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (!res.ok) throw new Error("Failed to load executors");
-        const json = await res.json();
-        setExecutors(json);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Unknown error");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchExecutors();
+  const load = useCallback(async () => {
+    setExecutors(await api<Executor[]>("/executor"));
   }, []);
 
-  if (loading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center">
-        <p className="text-navy-300">Loading...</p>
-      </main>
+  useEffect(() => {
+    void load().catch((err) =>
+      setError(err instanceof Error ? err.message : "Failed to load"),
     );
+  }, [load]);
+
+  async function handleCreate(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      await api("/executor", {
+        method: "POST",
+        body: JSON.stringify({
+          executor_name: name,
+          executor_email: email,
+          relationship,
+          access_level: "full",
+        }),
+      });
+      setName("");
+      setEmail("");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not invite executor");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
-    <main className="min-h-screen p-8">
-      <div className="mx-auto max-w-4xl">
-        <h1 className="text-3xl font-bold text-amber-400">Executor Access</h1>
-        <p className="mt-2 text-navy-300">
-          Manage who can access your digital estate.
-        </p>
-
-        {error && (
-          <div className="mt-4 rounded-lg bg-red-900/30 border border-red-700 p-3 text-red-300 text-sm">
-            {error}
-          </div>
-        )}
-
-        <div className="mt-8 space-y-3">
-          {executors.length === 0 ? (
-            <p className="text-navy-400">No executors added yet.</p>
-          ) : (
-            executors.map((executor) => (
-              <div
-                key={executor.id}
-                className="flex items-center justify-between rounded-lg bg-navy-900/50 p-4 border border-navy-800"
-              >
-                <div>
-                  <p className="font-medium text-white">{executor.executor_name}</p>
-                  <p className="text-sm text-navy-400">
-                    {executor.relationship} · {executor.executor_email}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span className="rounded-full bg-navy-800 px-2 py-1 text-xs text-navy-300">
-                    {executor.access_level}
-                  </span>
-                  <p className="mt-1 text-xs text-navy-500 capitalize">{executor.status}</p>
-                </div>
-              </div>
-            ))
-          )}
+    <AppShell
+      title="Executors"
+      subtitle="Invite the people who should receive a checklist when it matters."
+    >
+      <p className="mb-6 text-sm text-navy-400">
+        Invited executors sign in and open the{" "}
+        <Link href="/executor/portal" className="text-amber-400 hover:underline">
+          executor portal
+        </Link>
+        .
+      </p>
+      {error ? (
+        <div className="mb-4 rounded-lg border border-red-700 bg-red-900/30 p-3 text-sm text-red-300">
+          {error}
         </div>
+      ) : null}
+
+      <form
+        onSubmit={handleCreate}
+        className="mb-10 grid gap-4 rounded-lg border border-navy-800 bg-navy-900/40 p-6 sm:grid-cols-3"
+      >
+        <h2 className="sm:col-span-3 text-lg font-semibold text-white">
+          Invite executor
+        </h2>
+        <input
+          required
+          placeholder="Full name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="rounded-lg border border-navy-600 bg-navy-900 px-4 py-2.5"
+        />
+        <input
+          required
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="rounded-lg border border-navy-600 bg-navy-900 px-4 py-2.5"
+        />
+        <input
+          required
+          placeholder="Relationship"
+          value={relationship}
+          onChange={(e) => setRelationship(e.target.value)}
+          className="rounded-lg border border-navy-600 bg-navy-900 px-4 py-2.5"
+        />
+        <div className="sm:col-span-3">
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-lg bg-amber-500 px-5 py-2.5 font-semibold text-navy-950 hover:bg-amber-400 disabled:opacity-50"
+          >
+            {saving ? "Sending…" : "Invite"}
+          </button>
+        </div>
+      </form>
+
+      <div className="space-y-3">
+        {executors.length === 0 ? (
+          <p className="text-navy-400">No executors invited yet.</p>
+        ) : (
+          executors.map((ex) => (
+            <div
+              key={ex.id}
+              className="rounded-lg border border-navy-800 bg-navy-900/50 p-4"
+            >
+              <p className="font-medium text-white">{ex.executor_name}</p>
+              <p className="text-sm text-navy-400">
+                {ex.executor_email} · {ex.relationship} · {ex.status}
+              </p>
+            </div>
+          ))
+        )}
       </div>
-    </main>
+    </AppShell>
   );
 }
