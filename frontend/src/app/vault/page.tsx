@@ -25,9 +25,7 @@ export default function VaultPage() {
   const [dek, setDek] = useState<CryptoKey | null>(null);
   const [items, setItems] = useState<VaultItem[]>([]);
   const [error, setError] = useState("");
-  const [title, setTitle] = useState("");
   const [kind, setKind] = useState<VaultItemKind>("note");
-  const [secret, setSecret] = useState("");
   const [revealed, setRevealed] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
@@ -50,11 +48,14 @@ export default function VaultPage() {
     );
   }, [dek, loadItems]);
 
-  async function handleCreate(e: FormEvent) {
+  async function handleCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!dek) return;
     setSaving(true);
     setError("");
+    const form = new FormData(e.currentTarget);
+    const title = String(form.get("title_hint") || "");
+    const secret = String(form.get("secret") || "");
     try {
       const { encrypted_data, nonce } = await encryptSecret(dek, secret);
       await api("/vault", {
@@ -66,8 +67,7 @@ export default function VaultPage() {
           nonce,
         }),
       });
-      setTitle("");
-      setSecret("");
+      e.currentTarget.reset();
       await loadItems();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save item");
@@ -118,8 +118,7 @@ export default function VaultPage() {
             <label className="block text-sm text-navy-200">Title hint</label>
             <input
               required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              name="title_hint"
               className="mt-1 w-full rounded-lg border border-navy-600 bg-navy-900 px-4 py-2.5"
               placeholder="Chase Bank"
             />
@@ -143,8 +142,7 @@ export default function VaultPage() {
           <label className="block text-sm text-navy-200">Secret</label>
           <textarea
             required
-            value={secret}
-            onChange={(e) => setSecret(e.target.value)}
+            name="secret"
             rows={3}
             className="mt-1 w-full rounded-lg border border-navy-600 bg-navy-900 px-4 py-2.5"
             placeholder="Password, seed phrase, or note"
