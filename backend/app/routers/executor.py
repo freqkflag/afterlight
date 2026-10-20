@@ -339,6 +339,7 @@ def _group_by_kind(assets: list[Asset]) -> dict[str, int]:
 
 
 def _get_recent_activity(db: Session, user_id: str, limit: int = 10) -> list[dict]:
+    """Get recent audit log entries."""
     logs = (
         db.query(AuditLog)
         .filter_by(user_id=user_id)

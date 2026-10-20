@@ -53,7 +53,8 @@ export default function VaultPage() {
     if (!dek) return;
     setSaving(true);
     setError("");
-    const form = new FormData(e.currentTarget);
+    const formEl = e.currentTarget;
+    const form = new FormData(formEl);
     const title = String(form.get("title_hint") || "");
     const secret = String(form.get("secret") || "");
     try {
@@ -67,7 +68,7 @@ export default function VaultPage() {
           nonce,
         }),
       });
-      e.currentTarget.reset();
+      formEl.reset();
       await loadItems();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save item");
